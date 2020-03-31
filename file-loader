@@ -1,0 +1,73 @@
+/** 导入模块 **/
+const path = require("path");                                                   // 路径处理
+const TerserJSPlugin = require("terser-webpack-plugin");                        // js压缩插件
+const nodeExternals = require("webpack-node-externals");                        // 忽略node_modules配置
+const { CleanWebpackPlugin } = require("clean-webpack-plugin");                 // 文件清理处理
+const FileManagerPlugin = require("filemanager-webpack-plugin");                // 文件操作
+
+/** wepback打包配置 **/
+module.exports = {                                                              // 返回给webpack的配置
+    target: "electron-main",                                                    // 打包的目标
+    devtool: "none",                                                            // 源码映射
+    entry: path.resolve("bin/index.js"),                                        // 入口文件
+    output: {                                                                   // 输出
+        path: path.resolve("build"),                                            // 输出目录
+        filename: "index.js",                                                   // 文件名
+        chunkFilename: "chunk-[name].[hash].js"                                 // 块加载
+    },
+    externals: [nodeExternals()],                                               // 忽略node_modules
+    optimization: {                                                             // 优化
+        minimizer: [new TerserJSPlugin]                                         // 最小化 - js压缩(支持es6)
+    },
+    node: {                                                                     // node环境配置
+        __dirname: false                                                        // 当前文件夹变量保持原始内容
+    },
+    resolve: {                                                                  // 转换路径
+        alias: {                                                                // 解析
+            "@app": path.resolve("app"),                                        // app 文件夹的路径
+            "@image": path.resolve("image"),                                    // app 文件夹的路径
+            "@models": path.resolve("models")                                   // models 文件夹路径
+        }
+    },
+    module: {                                                                   // 模块
+        rules: [                                                                // 模块规则
+            {
+                test: /\.(png|svg|jpg|gif|ico)$/,                               // 图片类型
+                use: [{                                                         // 解析加载
+                    loader: "file-loader",                                      // 文件解析
+                    options: {                                                  // 配置
+                        name: "[contenthash].[ext]",                            // 自定义路径
+                        outputPath: "img/",                                     // 输出目录
+                        esModule: false                                         // 不开启es
+                    }
+                }]
+            }
+        ]
+    },
+    plugins: [                                                                  // 插件
+        new CleanWebpackPlugin({                                                // 清理构建文件夹
+            cleanOnceBeforeBuildPatterns: [                                     // 规则 不清理 views 渲染层的文件
+                "**/*",                                                         // 所有文件
+                "!www",                                                         // 忽略 www
+                "!www/**/*",                                                    // 忽略 www 下的文件
+                "!views",                                                       // 忽略 views
+                "!views/**/*"                                                   // 忽略 views 下的文件
+            ]
+        })
+    ]
+}
+
+// Non production environment
+if (`${process.env.NODE_ENV}`.trim() !== "production") {                        // 非生产环境
+    module.exports.devtool = "scheap-module-eval-souce-map";                    // 开发环境的情况
+    module.exports.plugins.push(new FileManagerPlugin({                         // 进行文件操作
+        onEnd: {                                                                // 最后监听操作
+            copy: [{                                                            // 复制文件
+                source: path.resolve("vue-devtools/**/*"),                      // 复制路径
+                destination: path.resolve("build/vue-devtools")                 // 目标路径
+            }]
+        }
+    }))
+}
+
+
